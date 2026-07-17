@@ -1,4 +1,4 @@
-{
+module.exports = {
   "components": [
     {
       "id": "webhook_1",
@@ -213,4 +213,4 @@
     "zoom": 1
   },
   "version": 1
-}
+};

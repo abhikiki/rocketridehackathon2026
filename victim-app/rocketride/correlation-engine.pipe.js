@@ -1,4 +1,4 @@
-{
+module.exports = {
   "components": [
     {
       "id": "webhook_1",
@@ -80,11 +80,11 @@
     }
   ],
   "source": "webhook_1",
-  "project_id": "1ca98181-e012-41fb-848c-a8a6f2698ffb",
+  "project_id": "32dcd7d6-7d16-46d6-b9ca-aa99f295e471",
   "viewport": {
     "x": 0,
     "y": 0,
     "zoom": 1
   },
   "version": 1
-}
+};

@@ -43,7 +43,7 @@ the dashboard can use the Supabase anon key directly.
 
 | Secret | Lives in |
 |---|---|
-| `ROCKETRIDE_ANTHROPIC_KEY` | `.pipe` file config, set via the RocketRide extension's `.env` (server-side, not `victim-app`) |
+| `ROCKETRIDE_OPENAI_KEY` | `.pipe` file config, set via the RocketRide extension's `.env` (server-side, not `victim-app`); must keep the `ROCKETRIDE_` prefix — the SDK only substitutes `${ROCKETRIDE_*}` template variables into pipeline configs |
 | `SUPABASE_POOLER_URL` | Vercel env var on `victim-app` (server-side Postgres access) |
 | `ROCKETRIDE_URI` / `ROCKETRIDE_APIKEY` | Vercel env var on `victim-app`, extension-managed |
 | `PIPELINE2_RELAY_URL` / `PIPELINE2_RELAY_KEY` | Vercel env var on `victim-app`, provided by Track B |

@@ -1,14 +1,16 @@
-const fs = require('fs');
-const path = require('path');
 const { RocketRideClient } = require('rocketride');
 
-// Must match rocketride/correlation-engine.pipe's project_id/source.
+// Must match rocketride/correlation-engine.pipe's project_id/source. Kept as
+// a .pipe.js module (not a raw file read at runtime) because Vercel's
+// `includeFiles` does not reliably bundle files outside a function's own
+// source tree into the deployed function - a plain JS module is always
+// traced and bundled correctly.
+const pipelineDefinition = require('../rocketride/correlation-engine.pipe.js');
 const PROJECT_ID = '32dcd7d6-7d16-46d6-b9ca-aa99f295e471';
 const SOURCE = 'webhook_1';
-const PIPELINE_PATH = path.join(__dirname, '..', '..', 'rocketride', 'correlation-engine.pipe');
 
 function loadPipelineDefinition() {
-  return JSON.parse(fs.readFileSync(PIPELINE_PATH, 'utf8'));
+  return pipelineDefinition;
 }
 
 function buildPrompt({ alert, fingerprint, incidentId, recentIncidents }) {

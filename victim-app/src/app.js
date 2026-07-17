@@ -94,9 +94,32 @@ async function handleAlert(alert) {
   });
 }
 
+const HOME_PAGE = `<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>victim-app</title>
+</head>
+<body>
+  <h1>victim-app</h1>
+  <button id="break-btn">Break it</button>
+  <p id="result"></p>
+  <script>
+    document.getElementById('break-btn').addEventListener('click', async () => {
+      const result = document.getElementById('result');
+      result.textContent = 'Breaking...';
+      const res = await fetch('/users/missing');
+      result.textContent = 'Response: ' + res.status + ' ' + await res.text();
+    });
+  </script>
+</body>
+</html>`;
+
 function createApp() {
   const app = express();
   app.use(express.json());
+
+  app.get('/', (req, res) => res.type('html').send(HOME_PAGE));
 
   app.get('/users/:id', (req, res) => {
     const user = USERS[req.params.id]; // undefined when id is unknown

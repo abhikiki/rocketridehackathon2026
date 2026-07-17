@@ -4,7 +4,7 @@ const { RocketRideClient } = require('rocketride');
 
 const PIPELINES = {
   incident: {
-    projectId: '17a810aa-a0ce-4750-b98b-f1792ddbf181',
+    projectId: '16e0c066-f82b-4b3f-bfd0-53d259f3472e',
     source: 'webhook_1',
     filename: 'incident-management.pipe',
   },
@@ -17,7 +17,8 @@ const PIPELINES = {
 
 function resolvePipelinePath(filename) {
   const candidates = [
-    // Vercel places includeFiles from outside the project under /var/task.
+    // track-b-relay's own copy, bundled via includeFiles (Vercel only
+    // bundles paths inside the project directory, not ../rocketride/*).
     path.join(__dirname, '..', 'rocketride', filename),
     // Local monorepo layout: track-b-relay/src -> repository root.
     path.join(__dirname, '..', '..', 'rocketride', filename),
@@ -29,11 +30,24 @@ function resolvePipelinePath(filename) {
   return match;
 }
 
+// Prefer track-b-relay's own bundled rocketride/*.pipe.js module: Vercel's
+// `includeFiles` does not reliably bundle files outside a function's own
+// source tree into the deployed function, but a plain JS module is always
+// traced and bundled correctly. Falls back to reading the repository-root
+// .pipe file directly for local dev and tests.
 function loadPipeline(spec) {
-  const pipelinePath = resolvePipelinePath(spec.filename);
-  const pipeline = JSON.parse(fs.readFileSync(pipelinePath, 'utf8'));
+  let pipeline;
+  let source;
+  try {
+    // eslint-disable-next-line import/no-dynamic-require, global-require
+    pipeline = require(`../rocketride/${spec.filename}.js`);
+    source = `../rocketride/${spec.filename}.js`;
+  } catch {
+    source = resolvePipelinePath(spec.filename);
+    pipeline = JSON.parse(fs.readFileSync(source, 'utf8'));
+  }
   if (pipeline.project_id !== spec.projectId || pipeline.source !== spec.source) {
-    throw new Error(`Pipeline identity mismatch for ${pipelinePath}`);
+    throw new Error(`Pipeline identity mismatch for ${source}`);
   }
   return pipeline;
 }
