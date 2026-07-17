@@ -55,6 +55,47 @@ check: is this fingerprint already an open incident? If yes, stop there
 - **Dashboard** — a live, real-time view of every incident, its status,
   its GitHub issue, and its fixing PR.
 
+## Pipelines
+
+Three AI pipelines do the actual reasoning, built and run on RocketRide.
+Each one is invoked only when it's actually needed — never for duplicate
+errors, never on every webhook event.
+
+### 1. Correlation engine
+
+- **Trigger:** a genuinely new error fingerprint (one the dedupe check
+  hasn't seen before).
+- **Input:** the new error's details plus a list of other recently-open
+  incidents for the same service.
+- **What it does:** an OpenAI model normalizes the error into a stable
+  template and decides whether this is a brand-new problem or a variant
+  of something already tracked.
+- **Output:** a correlation verdict, used to decide how the incident gets
+  recorded.
+
+### 2. Incident management
+
+- **Trigger:** a new-or-reopened incident signal.
+- **What it does:** creates a GitHub issue for a brand-new incident,
+  reopens the existing issue if the same underlying error resurfaces
+  after being marked resolved, and keeps the incident's database record
+  in sync with GitHub throughout.
+- **Output:** an open GitHub issue linked to the incident.
+
+### 3. Auto-fix (alert-solving)
+
+- **Trigger:** GitHub issue and pull-request events, delivered via
+  webhook.
+- **What it does:** on a new auto-triage issue, an OpenAI-powered agent
+  reads the error context, writes a fix for the affected file, and opens
+  a pull request. On a merged pull request tied to one of its own fixes,
+  it reports the incident as resolved.
+- **Output:** a fix PR, and — only after that PR is merged and deployed
+  — a closed incident.
+
+Together, these three form the loop: an error becomes an incident, an
+incident becomes a fix, and a merged fix closes the incident.
+
 ## Running it locally
 
 ### Prerequisites
