@@ -1,0 +1,7 @@
+.rocketride/
+
+node_modules/
+.env
+.env.local
+.vercel/
+.next/

@@ -1,0 +1,16 @@
+{
+  "name": "victim-app",
+  "version": "1.0.0",
+  "private": true,
+  "type": "commonjs",
+  "main": "api/index.js",
+  "scripts": {
+    "start": "node api/index.js",
+    "dev": "node api/index.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "pg": "^8.12.0",
+    "rocketride": "^1.0.0"
+  }
+}
