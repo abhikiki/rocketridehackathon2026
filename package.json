@@ -1,0 +1,19 @@
+{
+  "name": "rocketride-error-pipeline-track-b",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "check": "tsx check.ts",
+    "typecheck": "tsc --noEmit",
+    "validate:rocketride": "tsx check.ts --remote"
+  },
+  "dependencies": {
+    "rocketride": "^1.3.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.1.1",
+    "tsx": "^4.20.6",
+    "typescript": "^5.9.3"
+  }
+}
