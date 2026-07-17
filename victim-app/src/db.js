@@ -35,14 +35,16 @@ async function insertAlert({ incidentId, fingerprint, rawPayload }) {
   );
 }
 
-async function getRecentOpenIncidents({ service, limit = 10 }) {
+async function getRecentOpenIncidents({ service, excludeIncidentId, limit = 10 }) {
   const { rows } = await getPool().query(
     `select id, fingerprint, service, error_type, first_seen, alert_count
      from incidents
-     where service = $1 and status = 'open'
+     where service = $1
+       and status = 'open'
+       and ($2::uuid is null or id <> $2::uuid)
      order by last_seen desc
-     limit $2`,
-    [service, limit]
+     limit $3`,
+    [service, excludeIncidentId || null, limit]
   );
   return rows;
 }

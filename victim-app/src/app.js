@@ -59,7 +59,12 @@ async function handleAlert(alert) {
 
   console.log(`[alert] new fingerprint=${fingerprint} incident=${incidentId} - invoking correlation engine`);
 
-  const recentIncidents = await getRecentOpenIncidents({ service: alert.service });
+  // The row above was just inserted and must not be offered to the model as
+  // a correlation candidate; otherwise a new incident can link to itself.
+  const recentIncidents = await getRecentOpenIncidents({
+    service: alert.service,
+    excludeIncidentId: incidentId,
+  });
 
   let correlation;
   try {
