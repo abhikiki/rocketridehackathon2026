@@ -27,6 +27,7 @@ type Pipeline = {
 
 const root = process.cwd();
 const pipelinePaths = [
+  'rocketride/correlation-engine.pipe',
   'rocketride/incident-management.pipe',
   'rocketride/alert-solving.pipe',
 ];
@@ -236,23 +237,48 @@ async function main(): Promise<void> {
 
   if (!process.argv.includes('--remote')) return;
   const localEnv = await readFile(resolve(root, '.env'), 'utf8');
-  if (/=(replace-me|replace-with-|https:\/\/replace-me)/.test(localEnv)) {
-    throw new Error('Remote validation requires real values in the ignored .env file.');
+  const connectionValues = new Map(
+    localEnv.split(/\r?\n/)
+      .map((line) => line.match(/^([A-Z][A-Z0-9_]*)=(.*)$/))
+      .filter((match): match is RegExpMatchArray => Boolean(match))
+      .map((match) => [match[1], match[2]]),
+  );
+  for (const name of ['ROCKETRIDE_URI', 'ROCKETRIDE_APIKEY']) {
+    const value = connectionValues.get(name) ?? '';
+    if (!value || /replace-me|replace-with-/i.test(value)) {
+      throw new Error(`Remote validation requires a real ${name} value in the ignored .env file.`);
+    }
   }
 
-  const client = new RocketRideClient();
+  const stripQuotes = (value: string) => {
+    if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
+      return value.slice(1, -1);
+    }
+    return value;
+  };
+  const runtimeEnv = Object.fromEntries(
+    [...connectionValues.entries()].map(([name, value]) => [name, stripQuotes(value)]),
+  );
+  const client = new RocketRideClient({
+    uri: runtimeEnv.ROCKETRIDE_URI,
+    auth: runtimeEnv.ROCKETRIDE_APIKEY,
+    env: runtimeEnv,
+  });
   try {
     await client.connect();
     for (let index = 0; index < pipelines.length; index += 1) {
-      const result = await client.validate({
+      // The connected server currently rejects rrext_validate requests as
+      // "pipeline missing" even for known-good files. Starting/reusing a
+      // short-TTL task invokes the engine's real validation path instead.
+      const result = await client.use({
         pipeline: pipelines[index] as any,
         source: pipelines[index].source,
+        useExisting: true,
+        ttl: 120,
+        env: runtimeEnv,
       });
-      if (result.errors.length > 0) {
-        throw new Error(`${pipelinePaths[index]} remote errors: ${JSON.stringify(result.errors)}`);
-      }
-      console.log(`${pipelinePaths[index]} passed RocketRide server validation.`);
-      for (const warning of result.warnings ?? []) console.warn(`Warning: ${JSON.stringify(warning)}`);
+      if (!result.token) throw new Error(`${pipelinePaths[index]} did not return a task token.`);
+      console.log(`${pipelinePaths[index]} started/reused successfully on RocketRide.`);
     }
   } finally {
     await client.disconnect();

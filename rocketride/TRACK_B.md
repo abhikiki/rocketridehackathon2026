@@ -7,11 +7,16 @@ This directory contains the two RocketRide pipelines owned by Track B:
 
 Both pipelines use RocketRide's `webhook -> question -> agent_langchain -> response_answers` data path. Anthropic, GitHub, Supabase, and HTTP integrations are attached to the agent through RocketRide control-plane connections.
 
+RocketRide does not expose these Webhook source nodes as public HTTP URLs.
+The deployable `track-b-relay/` service owns `/api/incident` and
+`/api/github`, authenticates those requests, then uses the RocketRide SDK to
+start/reuse and send text into the corresponding pipeline.
+
 ## Contract decisions
 
 Track B uses these decisions to remove ambiguity from the original plan:
 
-1. `incidents` has a nullable `pr_url text` column. Apply `sql/track-b-required.sql` to the shared Supabase project.
+1. `incidents` has a nullable `pr_url text` column in the shared `supabase/schema.sql`. `sql/track-b-required.sql` remains available for projects that applied the old Track A schema first.
 2. Creating a PR does **not** close an incident. Pipeline 3 sends `resolved` only for a GitHub `pull_request.closed` event where `merged=true`.
 3. Pipeline 1 may create a redundant open row before discovering a recently closed incident. Pipeline 2 merges that row into the canonical prior incident: it reassigns alerts, combines counts/timestamps, deletes the redundant row, then reopens the prior row.
 4. GitHub issue and PR bodies include machine-readable HTML comments. The rest of the bodies remain readable during the demo.
@@ -65,7 +70,8 @@ Requirements: Node.js 18+, the RocketRide VS Code extension, and access to the s
 
 ```bash
 npm install
-npm run check
+npm run setup
+npm run test:all
 ```
 
 Open the ignored `.env` file in VS Code and replace every `replace-me` value. The extension may manage `ROCKETRIDE_URI` and `ROCKETRIDE_APIKEY`. Keep the other values local; `env.example` documents what teammates need.
@@ -80,14 +86,18 @@ npm run validate:rocketride
 
 Local `npm run check` validates JSON, provider names, source references, lane compatibility, control-plane requirements, required config fields, UUID uniqueness, environment-variable documentation, and obvious committed-secret patterns. Remote validation is still required before deployment because only the RocketRide server can validate runtime component behavior.
 
-## Configure and deploy Pipeline 2
+## Configure and deploy the Track B relay
 
 1. Open `incident-management.pipe` with the RocketRide visual editor.
 2. Confirm the Webhook, Question, LangChain Agent, Anthropic, GitHub, Supabase, and Response nodes render without form errors.
-3. Apply `sql/track-b-required.sql` in Supabase.
-4. Deploy the pipeline and save its webhook URL in `ROCKETRIDE_INCIDENT_WEBHOOK_URL`.
-5. Configure the deployed webhook to require `X-RocketRide-Key` matching `ROCKETRIDE_INCIDENT_WEBHOOK_KEY` if RocketRide Cloud exposes header-auth settings. Header authentication is deployment configuration because the installed Webhook node schema does not contain an auth field.
-6. Give the Pipeline 2 URL and key to the owner of Pipeline 1.
+3. Deploy the relay from the **repository root** as its own Vercel project with `vercel --prod --local-config vercel.track-b.json`. This is required so Vercel can bundle the canonical `rocketride/*.pipe` files. Configure every value in `track-b-relay/.env.example`.
+4. Set `ROCKETRIDE_INCIDENT_WEBHOOK_URL` to `https://<relay-domain>/api/incident`.
+5. Set `PIPELINE2_RELAY_KEY` and `ROCKETRIDE_INCIDENT_WEBHOOK_KEY` to the same random internal secret.
+6. Configure Track A's victim app with `PIPELINE2_RELAY_URL=https://<relay-domain>/api/incident` and the same `PIPELINE2_RELAY_KEY`.
+
+The relay starts or reuses both RocketRide tasks with `useExisting: true`.
+The public authentication boundary lives in Express because the installed
+RocketRide Webhook source schema has no HTTP authentication fields.
 
 Test in this order using `fixtures/incident-new.json` and `fixtures/incident-resolved.json`:
 
@@ -96,12 +106,12 @@ Test in this order using `fixtures/incident-new.json` and `fixtures/incident-res
 3. A resolved signal for a genuinely merged PR closes the issue and incident.
 4. A new signal inside the reopen window reopens the same issue and canonical incident.
 
-## Configure and deploy Pipeline 3
+## Configure the GitHub webhook
 
-1. Set `ROCKETRIDE_INCIDENT_WEBHOOK_URL` to Pipeline 2's deployed URL before starting/deploying Pipeline 3. The HTTP tool whitelist is intentionally limited to this value.
-2. Open `alert-solving.pipe`, validate it, and deploy it.
-3. In GitHub repository settings, create one webhook pointing at Pipeline 3. Use content type `application/json`, set a webhook secret, and subscribe to **Issues** and **Pull requests** events.
-4. If RocketRide Cloud supports signature validation outside the `.pipe` file, require GitHub's `X-Hub-Signature-256`. The installed Webhook node itself does not expose a signature field.
+1. Ensure `ROCKETRIDE_INCIDENT_WEBHOOK_URL` is the relay's `/api/incident` endpoint before Pipeline 3 starts. Its HTTP tool whitelist is limited to this value.
+2. In GitHub repository Settings -> Webhooks, point a webhook at `https://<relay-domain>/api/github`.
+3. Use content type `application/json`, set the same value in GitHub and the relay's `GITHUB_WEBHOOK_SECRET`, and subscribe to **Issues** and **Pull requests** events.
+4. The relay verifies `X-Hub-Signature-256` before any payload reaches RocketRide.
 5. Create a manual `auto-triage` issue with the metadata marker before relying on end-to-end delivery.
 
 Pipeline 3 ignores all issue labels except `auto-triage`, all unmerged/irrelevant PR events, all repositories except the configured repository, unsafe file paths, and fixes that require more than one file. It checks for an existing `auto-fix-issue-N` PR before writing so GitHub webhook retries do not create duplicates.
@@ -116,7 +126,9 @@ Track A must provide:
 - Pipeline 1 behavior compatible with the redundant-row merge decision;
 - the victim repository's default branch and target files.
 
-Track B provides Pipeline 2's deployed URL/key as soon as available. Pipeline 3 is called by GitHub directly, so Track A does not normally call it.
+Track B provides the relay's `/api/incident` URL/key as soon as available.
+GitHub calls the relay's `/api/github` route directly; Track A does not call
+Pipeline 3.
 
 ## Security notes
 

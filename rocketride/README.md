@@ -1,4 +1,9 @@
-# RocketRide pipelines — Track A
+# RocketRide pipelines
+
+The three `.pipe` files are executed through RocketRide's authenticated
+WebSocket SDK. They are not themselves public HTTP endpoints. Track B's
+`track-b-relay/` Vercel service supplies the public, authenticated HTTP
+entry points for Pipeline 2 and Pipeline 3.
 
 ## `correlation-engine.pipe` (Pipeline 1)
 
@@ -77,3 +82,15 @@ rocketride start rocketride/correlation-engine.pipe --apikey $ROCKETRIDE_APIKEY
 (reading this exact `.pipe` file) if no running task is found for this
 `project_id`/`source`. `victim-app/vercel.json` includes this file in the
 serverless function bundle for that reason.
+
+## Track B pipelines
+
+- `incident-management.pipe` is Pipeline 2. `track-b-relay/api/incident`
+  validates the shared key and sends incident JSON into this pipeline.
+- `alert-solving.pipe` is Pipeline 3. `track-b-relay/api/github` validates
+  GitHub's HMAC signature and sends `issues` and `pull_request` payloads
+  into this pipeline.
+
+Both tasks are started or reused by the relay through `useExisting: true`.
+See `TRACK_B.md` for contracts, environment variables, deployment, and the
+manual test sequence.

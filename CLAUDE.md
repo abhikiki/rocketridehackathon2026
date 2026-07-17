@@ -12,11 +12,11 @@ Three RocketRide pipelines, split across two build tracks:
 - **Track A (this repo's `victim-app/`, `supabase/`,
   `rocketride/correlation-engine.pipe`, `dashboard/`)**: ingestion +
   correlation. Owns the Supabase schema.
-- **Track B**: Pipeline 2 (Incident Management — GitHub issue
-  create/reopen/close) and Pipeline 3 (Alert Solving — generates and
-  opens the fix PR). Owns the relay endpoint Track A's `victim-app` calls,
-  and will need an additive migration on `incidents` (a `pr_url` column)
-  once Pipeline 3 exists.
+- **Track B** (`track-b-relay/`, `rocketride/incident-management.pipe`,
+  `rocketride/alert-solving.pipe`): Pipeline 2 creates/reopens/closes the
+  GitHub issue; Pipeline 3 generates the fix PR and reports resolution only
+  after merge. The relay exposes the authenticated HTTP endpoints and the
+  shared schema includes `pr_url`.
 
 ## Deviations from the original design doc
 
@@ -48,7 +48,9 @@ the dashboard can use the Supabase anon key directly.
 | `ROCKETRIDE_URI` / `ROCKETRIDE_APIKEY` | Vercel env var on `victim-app`, extension-managed |
 | `PIPELINE2_RELAY_URL` / `PIPELINE2_RELAY_KEY` | Vercel env var on `victim-app`, provided by Track B |
 | `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Vercel env var on `dashboard` (public, read-only via RLS) |
-| GitHub token, GitHub webhook secret | Track B's Pipeline 2/3 config — not this track's concern |
+| `ROCKETRIDE_GITHUB_TOKEN`, Supabase pooler fields | Track B relay Vercel env; substituted into Pipeline 2/3 configs when the task starts |
+| `GITHUB_WEBHOOK_SECRET` | Track B relay Vercel env; validates `/api/github` requests before RocketRide sees them |
+| `PIPELINE2_RELAY_KEY` / `ROCKETRIDE_INCIDENT_WEBHOOK_KEY` | Track B relay Vercel env; set to the same random internal value |
 
 No live credential values are ever committed; see each app's
 `.env.example`.

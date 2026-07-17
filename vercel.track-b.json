@@ -1,0 +1,11 @@
+{
+  "version": 2,
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/index" }
+  ],
+  "functions": {
+    "index.cjs": {
+      "includeFiles": "rocketride/*.pipe"
+    }
+  }
+}

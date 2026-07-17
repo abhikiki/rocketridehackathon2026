@@ -1,13 +1,18 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { supabase } from '../lib/supabaseClient';
+import { isSupabaseConfigured, supabase } from '../lib/supabaseClient';
 
 export default function Dashboard() {
   const [incidents, setIncidents] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (!isSupabaseConfigured) {
+      setLoading(false);
+      return undefined;
+    }
+
     let cancelled = false;
 
     supabase
@@ -47,6 +52,18 @@ export default function Dashboard() {
   }, []);
 
   if (loading) return <p>Loading…</p>;
+
+  if (!isSupabaseConfigured) {
+    return (
+      <main>
+        <h1>Incidents</h1>
+        <p>
+          Dashboard configuration is missing. Set NEXT_PUBLIC_SUPABASE_URL and
+          NEXT_PUBLIC_SUPABASE_ANON_KEY, then rebuild the dashboard.
+        </p>
+      </main>
+    );
+  }
 
   return (
     <main>
